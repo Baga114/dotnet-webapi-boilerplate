@@ -33,7 +33,7 @@ stages:
   jobs:
   - job: SonarQualityGateCheckJob
     displayName: 'Sonar Quality Gate Check'
-    dependsOn: Analysis
+    #dependsOn: Analysis
     steps:
     - checkout: self
 
