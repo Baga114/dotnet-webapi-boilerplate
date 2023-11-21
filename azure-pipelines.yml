@@ -33,6 +33,7 @@ stages:
   jobs:
   - job: SonarQualityGateCheckJob
     displayName: 'Sonar Quality Gate Check'
+    dependsOn: Analysis
     steps:
     - checkout: self
 
@@ -47,15 +48,21 @@ stages:
       inputs:
         pollingTimeoutSec: '300'
 
-  - job: ScriptJob
-    displayName: 'Run Custom Script'
-    # dependsOn: SonarQualityGateCheck
+  - job: BuildAndPublishJob
+    displayName: 'Build and Publish'
+    dependsOn: SonarQualityGateCheck
     steps:
     - checkout: self
 
-    # Add your custom script here
-    - powershell: |
-        dotnet build
-        dotnet publish
+    # Build and publish .NET project
+    - task: UseDotNet@2
+      displayName: 'Use .NET Core SDK'
+      inputs:
+        packageType: 'sdk'
+        version: '3.x'
+        installationPath: $(Agent.ToolsDirectory)/dotnet
+
+    - script: dotnet publish --os linux --arch x64
+      displayName: 'Build and Publish .NET project'
 
 # Add more stages or jobs as needed
