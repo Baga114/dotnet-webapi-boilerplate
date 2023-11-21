@@ -2,10 +2,10 @@ trigger:
 - main
 
 pool:
-  vmImage: ''
+  vmImage: 'windows-latest'  # Use a Windows agent pool
 
 variables:
-  - group: sonarlogin
+  - group: soar-login2
   - name: acrServiceConnection
     value: 'acr-connection'
   - name: sonarServiceConnection
@@ -25,9 +25,9 @@ stages:
     - task: SonarQubePrepare@4
       inputs:
         SonarQube: '$(sonarServiceConnection)'
-        scannerMode: 'CLI'
-        configMode: 'manual'
-        cliProjectKey: '$(ProjectKey)'
+        scannerMode: 'MSBuild'
+        projectKey: '$(ProjectName)'  # Replace with your project key
+        projectName: '$(ProjectName)'  # Replace with your project name
 
 - stage: SonarQualityGateCheck
   jobs:
@@ -37,29 +37,23 @@ stages:
     - checkout: self
 
     # Run SonarQube quality gate check using Bash script
-    - script: |
-        set -x
-        username="$(username)"
-        password="$(password)"
+    - powershell: |
+        $base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("$(username):$(password)")))
+        $projectKey = "$(ProjectName)"  # Replace with your project key
+        $branch = "main"
+        $apiUrl = "http://20.15.204.13:9000/api/qualitygates/project_status?projectKey=$projectKey&branch=$branch"
 
-        base64AuthInfo=$(echo -n "$username:$password" | base64)
+        $result = Invoke-RestMethod -Uri $apiUrl -Headers @{Authorization=("Basic {0}" -f $base64AuthInfo)}
 
-        headers=(
-            "Authorization: Basic $base64AuthInfo"
-        )
-
-        projectKey="$(ProjectKey)"
-        branch="master"
-        apiUrl="http://20.15.204.13:9000/api/qualitygates/project_status?projectKey=$projectKey&branch=$branch"
-
-        result=$(curl -s -H "${headers[@]}" "$apiUrl")
-
-        if [[ $(echo "$result" | jq -r .projectStatus.status) == "OK" ]]; then
-            echo "Quality Gate Succeeded"
-        else
-            echo "Quality gate failed"
+        if ($result.projectStatus.status -eq "OK") {
+            Write-Host "Quality Gate Succeeded"
+        } else {
+            Write-Host "Quality gate failed"
             exit 1
-        fi
+        }
+      env:
+        username: $(username)
+        password: $(password)
 
 - stage: BuildAndPush
   displayName: 'Build and Push to ACR'
@@ -68,12 +62,15 @@ stages:
     displayName: 'Build and Push'
     steps:
     - checkout: self
+
+    # Add your .NET build steps here
+
     - task: Docker@2
       displayName: 'Build and push Docker image'
       inputs:
         command: 'buildAndPush'
         containerRegistry: '$(AcrServiceConnection)'
-        repository: 'testing'
+        repository: 'testing23'
         Dockerfile: '$(Build.SourcesDirectory)/Dockerfile'
         tags: |
           $(Build.BuildId)
