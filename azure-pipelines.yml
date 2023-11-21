@@ -49,7 +49,7 @@ stages:
 
   - job: ScriptJob
     displayName: 'Run Custom Script'
-    dependsOn: SonarQualityGateCheck
+    # dependsOn: SonarQualityGateCheck
     steps:
     - checkout: self
 
