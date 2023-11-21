@@ -64,7 +64,6 @@ stages:
   jobs:
   - job: SonarQualityGateCheckJob
     displayName: 'Sonar Quality Gate Check'
-    dependsOn: Build
     steps:
     - checkout: self
 
