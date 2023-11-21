@@ -26,34 +26,8 @@ stages:
       inputs:
         SonarQube: '$(sonarServiceConnection)'
         scannerMode: 'MSBuild'
-        projectKey: '$(ProjectName)'  # Replace with your project key
-        projectName: '$(ProjectName)'  # Replace with your project name
-
-- stage: SonarQualityGateCheck
-  jobs:
-  - job: SonarQualityGateCheckJob
-    displayName: 'Sonar Quality Gate Check'
-    steps:
-    - checkout: self
-
-    # Run SonarQube quality gate check using Bash script
-    - powershell: |
-        $base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("$(username):$(password)")))
-        $projectKey = "$(ProjectName)"  # Replace with your project key
-        $branch = "main"
-        $apiUrl = "http://20.15.204.13:9000/api/qualitygates/project_status?projectKey=$projectKey&branch=$branch"
-
-        $result = Invoke-RestMethod -Uri $apiUrl -Headers @{Authorization=("Basic {0}" -f $base64AuthInfo)}
-
-        if ($result.projectStatus.status -eq "OK") {
-            Write-Host "Quality Gate Succeeded"
-        } else {
-            Write-Host "Quality gate failed"
-            exit 1
-        }
-      env:
-        username: $(username)
-        password: $(password)
+        projectKey: 'dotnet-test'  # Replace with your project key
+        projectName: 'dotnet-test'  # Replace with your project name
 
 - stage: BuildAndPush
   displayName: 'Build and Push to ACR'
@@ -85,3 +59,43 @@ stages:
       displayName: 'Publish Artifact: drop'
       inputs:
         PathtoPublish: deployment/deployment.yaml
+
+- stage: SonarQualityGateCheck
+  jobs:
+  - job: SonarQualityGateCheckJob
+    displayName: 'Sonar Quality Gate Check'
+    dependsOn: Build
+    steps:
+    - checkout: self
+
+    # Add your .NET build steps here if needed
+
+    # Run SonarQube analysis and publish Quality Gate results
+    - task: SonarQubeAnalyze@5
+      displayName: 'Run SonarQube analysis'
+      inputs:
+        SonarQube: '$(sonarServiceConnection)'
+
+    - task: SonarQubePublish@5
+      displayName: 'Publish SonarQube Quality Gate Result'
+      inputs:
+        pollingTimeoutSec: '300'
+
+    # Check Quality Gate status and fail the build if it failed
+    - powershell: |
+        $base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("$(username):$(password)")))
+        $projectKey = "dotnet-test"  # Replace with your project key
+        $branch = "main"
+        $apiUrl = "http://20.15.204.13:9000/api/qualitygates/project_status?projectKey=$projectKey&branch=$branch"
+
+        $result = Invoke-RestMethod -Uri $apiUrl -Headers @{Authorization=("Basic {0}" -f $base64AuthInfo)}
+
+        if ($result.projectStatus.status -eq "OK") {
+            Write-Host "Quality Gate Succeeded"
+        } else {
+            Write-Host "Quality gate failed"
+            exit 1
+        }
+      env:
+        username: $(username)
+        password: $(password)
