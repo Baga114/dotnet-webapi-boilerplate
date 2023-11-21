@@ -80,12 +80,6 @@ stages:
       inputs:
         pollingTimeoutSec: '300'
 
-  - job: SonarQualityGateCheckJobWithoutDependency
-    displayName: 'Dummy Job to Satisfy Dependency Requirement'
-    steps:
-    - checkout: self
-      script: echo 'This is a dummy job to satisfy the dependency requirement'
-
     # Check Quality Gate status and fail the build if it failed
     - powershell: |
         $base64AuthInfo = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("$(username):$(password)")))
